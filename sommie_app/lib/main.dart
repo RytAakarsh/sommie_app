@@ -1,122 +1,201 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart'; // ADD THIS IMPORT
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'core/constants/app_constants.dart';
+import 'core/themes/app_theme.dart';
+import 'data/providers/language_provider.dart';
+import 'data/providers/auth_provider.dart';
+import 'presentation/screens/splash_screen.dart';
+import 'routes/app_routes.dart';
+import 'presentation/translations/translations_extension.dart'; // ADD THIS IMPORT
 
-void main() {
-  runApp(const MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  final prefs = await SharedPreferences.getInstance();
+  final savedLanguage = prefs.getString(AppConstants.languageKey) ?? 'en';
+  
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => LanguageProvider(savedLanguage)),
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
-    );
-  }
-}
-
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
+    return Consumer<LanguageProvider>(
+      builder: (context, languageProvider, child) {
+        return MaterialApp(
+          title: AppConstants.appName,
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: ThemeMode.light,
+          locale: Locale(languageProvider.currentLanguage),
+          supportedLocales: const [
+            Locale('en'),
+            Locale('pt'),
           ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          initialRoute: AppRoutes.splash,
+          onGenerateRoute: AppRoutes.onGenerateRoute,
+        );
+      },
     );
   }
+}
+
+// AppLocalizations class for translations
+class AppLocalizations {
+  final Locale locale;
+  
+  AppLocalizations(this.locale);
+  
+  static const delegate = _AppLocalizationsDelegate();
+  
+  static Map<String, Map<String, String>> _localizedValues = {
+    'en': {
+      'app.title': 'Sommie',
+      'app.subtitle': 'Your Personal Sommelier with AI',
+      'auth.login': 'Login',
+      'auth.signup': 'Sign Up',
+      'auth.email': 'Email',
+      'auth.password': 'Password',
+      'auth.submit': 'Submit',
+      'auth.cancel': 'Cancel',
+      'auth.newUser': 'New User?',
+      'auth.existingUser': 'Already have an account?',
+      'auth.forgotPassword': 'Forgot Password?',
+      'auth.invalidCredentials': 'Invalid email or password',
+      'signup.name': 'Full Name',
+      'signup.age': 'Age',
+      'signup.ageError': 'Must be 18 or older',
+      'signup.password': 'Password',
+      'signup.passwordError': 'Must include uppercase, number, and special character',
+      'signup.confirmPassword': 'Confirm Password',
+      'signup.passwordMismatch': 'Passwords do not match',
+      'signup.country': 'Country',
+      'signup.selectCountry': 'Select your country',
+      'signup.gender': 'Gender',
+      'signup.male': 'Male',
+      'signup.female': 'Female',
+      'signup.other': 'Other',
+      'signup.genderRequired': 'Gender is required',
+      'signup.confirmPasswordRequired': 'Please confirm your password',
+      'signup.countryRequired': 'Country is required',
+      'signup.nextStep': 'Next: Choose Your Plan',
+      'signup.error': 'Signup failed',
+      'plan.title': 'Choose Your Plan',
+      'plan.freemium': 'Freemium',
+      'plan.pro': 'PRO',
+      'plan.freemiumDesc': 'Basic analysis',
+      'plan.proDesc': 'Advanced analysis',
+      'plan.selectPlan': 'Select Plan',
+      'plan.upgradeLater': 'Upgrade Later',
+      'plan.recommended': 'RECOMMENDED',
+      'plan.perMonth': '/month',
+      'plan.feature1': 'Personalized wine recommendations',
+      'plan.feature2': 'Advanced AI wine analysis',
+      'plan.feature3': 'Basic food pairing suggestions',
+      'plan.feature4': 'Premium food & wine pairings',
+      'plan.feature5': 'Wine knowledge & tasting tips',
+      'plan.feature6': 'Conversation history & memory',
+      'plan.feature7': 'Personalized sommelier experience',
+      'plan.feature8': 'Priority access to new features',
+      'common.back': 'Back',
+      'common.cancel': 'Cancel',
+      'common.continue': 'Continue',
+      'common.loading': 'Loading...',
+      'common.error': 'Error',
+      'common.success': 'Success',
+    },
+    'pt': {
+      'app.title': 'Sommie',
+      'app.subtitle': 'Seu Sommelier Pessoal com IA',
+      'auth.login': 'Entrar',
+      'auth.signup': 'Cadastrar',
+      'auth.email': 'Email',
+      'auth.password': 'Senha',
+      'auth.submit': 'Enviar',
+      'auth.cancel': 'Cancelar',
+      'auth.newUser': 'Novo Usuário?',
+      'auth.existingUser': 'Já tem uma conta?',
+      'auth.forgotPassword': 'Esqueceu a senha?',
+      'auth.invalidCredentials': 'Email ou senha inválidos',
+      'signup.name': 'Nome Completo',
+      'signup.age': 'Idade',
+      'signup.ageError': 'Deve ter 18 anos ou mais',
+      'signup.password': 'Senha',
+      'signup.passwordError': 'Deve incluir letra maiúscula, número e caractere especial',
+      'signup.confirmPassword': 'Confirmar Senha',
+      'signup.passwordMismatch': 'As senhas não coincidem',
+      'signup.country': 'País',
+      'signup.selectCountry': 'Selecione seu país',
+      'signup.gender': 'Gênero',
+      'signup.male': 'Masculino',
+      'signup.female': 'Feminino',
+      'signup.other': 'Outro',
+      'signup.genderRequired': 'Gênero é obrigatório',
+      'signup.confirmPasswordRequired': 'Por favor, confirme sua senha',
+      'signup.countryRequired': 'País é obrigatório',
+      'signup.nextStep': 'Próximo: Escolha Seu Plano',
+      'signup.error': 'Falha no cadastro',
+      'plan.title': 'Escolha Seu Plano',
+      'plan.freemium': 'Freemium',
+      'plan.pro': 'PRO',
+      'plan.freemiumDesc': 'Análise básica',
+      'plan.proDesc': 'Análise avançada',
+      'plan.selectPlan': 'Selecionar Plano',
+      'plan.upgradeLater': 'Fazer upgrade depois',
+      'plan.recommended': 'RECOMENDADO',
+      'plan.perMonth': '/mês',
+      'plan.feature1': 'Recomendações personalizadas de vinho',
+      'plan.feature2': 'Análise avançada de vinhos com IA',
+      'plan.feature3': 'Sugestões básicas de harmonização',
+      'plan.feature4': 'Harmonizações premium de comida e vinho',
+      'plan.feature5': 'Conhecimento sobre vinhos e dicas de degustação',
+      'plan.feature6': 'Histórico de conversas e memória',
+      'plan.feature7': 'Experiência personalizada de sommelier',
+      'plan.feature8': 'Acesso prioritário a novos recursos',
+      'common.back': 'Voltar',
+      'common.cancel': 'Cancelar',
+      'common.continue': 'Continuar',
+      'common.loading': 'Carregando...',
+      'common.error': 'Erro',
+      'common.success': 'Sucesso',
+    },
+  };
+
+  String translate(String key) {
+    return _localizedValues[locale.languageCode]?[key] ?? key;
+  }
+}
+
+class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
+  const _AppLocalizationsDelegate();
+  
+  @override
+  bool isSupported(Locale locale) => ['en', 'pt'].contains(locale.languageCode);
+  
+  @override
+  Future<AppLocalizations> load(Locale locale) async {
+    return AppLocalizations(locale);
+  }
+  
+  @override
+  bool shouldReload(_AppLocalizationsDelegate old) => false;
 }
