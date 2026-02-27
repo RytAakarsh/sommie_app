@@ -7,6 +7,7 @@ import '../../../core/utils/validators.dart';
 import '../../../data/providers/auth_provider.dart';
 import '../../../routes/app_routes.dart';
 import '../../translations/translations_extension.dart';
+import '../../../core/utils/connectivity_helper.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -22,10 +23,10 @@ class _SignupScreenState extends State<SignupScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  
+    bool _isLoading = false;
+  String? _errorMessage;
   String _selectedCountry = '';
   String _selectedGender = '';
-  String? _error;
   
   final List<String> _countries = [
     'United States',
@@ -73,7 +74,7 @@ class _SignupScreenState extends State<SignupScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // Error message
-                if (_error != null) ...[
+                if (_errorMessage != null) ...[
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
@@ -82,7 +83,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       border: Border.all(color: Colors.red.shade200),
                     ),
                     child: Text(
-                      _error!,
+                      _errorMessage!,
                       style: const TextStyle(color: Colors.red),
                       textAlign: TextAlign.center,
                     ),
@@ -258,9 +259,18 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 
-  Future<void> _handleSignup() async {
-    if (_formKey.currentState?.validate() ?? false) {
-       final authProvider = Provider.of<AuthProvider>(context, listen: false);
+Future<void> _handleSignup() async {
+  if (_formKey.currentState?.validate() ?? false) {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      // Check internet first
+      await ConnectivityHelper.checkConnection();
+      
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final success = await authProvider.signup(
         name: _nameController.text.trim(),
         email: _emailController.text.trim(),
@@ -272,13 +282,28 @@ class _SignupScreenState extends State<SignupScreen> {
 
       if (success && mounted) {
         Navigator.pushReplacementNamed(context, AppRoutes.planSelection);
-      } else {
+      }
+    } catch (e) {
+      String errorMsg = e.toString().replaceFirst('Exception: ', '');
+      
+      if (errorMsg.contains('Connection timeout') || 
+          errorMsg.contains('O servidor não está respondendo')) {
+        errorMsg = '⏱️ O servidor está demorando para responder. Tente novamente em alguns instantes.\n\n'
+                  '⏱️ The server is taking too long to respond. Please try again in a few moments.';
+      }
+      
+      setState(() {
+        _errorMessage = errorMsg;
+      });
+    } finally {
+      if (mounted) {
         setState(() {
-  _error = authProvider.error ?? 'Signup failed. Please try again.';
-     });
+          _isLoading = false;
+        });
       }
     }
   }
+}
 
   @override
   void dispose() {

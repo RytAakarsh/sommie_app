@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart'; // ADD THIS IMPORT
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'core/constants/app_constants.dart';
 import 'core/themes/app_theme.dart';
 import 'data/providers/language_provider.dart';
 import 'data/providers/auth_provider.dart';
+import 'data/providers/chat_provider.dart';
+import 'data/providers/cellar_provider.dart';
 import 'presentation/screens/splash_screen.dart';
 import 'routes/app_routes.dart';
-import 'presentation/translations/translations_extension.dart'; // ADD THIS IMPORT
+import 'presentation/translations/translations_extension.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,6 +23,8 @@ void main() async {
       providers: [
         ChangeNotifierProvider(create: (_) => LanguageProvider(savedLanguage)),
         ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => ChatProvider()),
+        ChangeNotifierProvider(create: (_) => CellarProvider()),
       ],
       child: const MyApp(),
     ),
@@ -58,6 +62,7 @@ class MyApp extends StatelessWidget {
     );
   }
 }
+
 
 // AppLocalizations class for translations
 class AppLocalizations {
@@ -116,6 +121,15 @@ class AppLocalizations {
       'plan.feature6': 'Conversation history & memory',
       'plan.feature7': 'Personalized sommelier experience',
       'plan.feature8': 'Priority access to new features',
+      'chat.welcome': "Hi, I'm Sommie, your virtual sommelier!",
+      'chat.description': "I'm an AI passionate about wines — I can answer questions, suggest pairings, share curiosities about grapes, regions, wineries, and recommend the best labels for your palate.",
+      'chat.typing': 'Sommie is typing...',
+      'chat.placeholder': 'Ask me anything...',
+      'chat.newChat': 'New Chat',
+      'chat.noChats': 'No matching chats',
+      'chat.tryKeyword': 'Try a different keyword',
+      'chat.searchPlaceholder': 'Search chats...',
+      'chat.delete': 'Delete chat',
       'common.back': 'Back',
       'common.cancel': 'Cancel',
       'common.continue': 'Continue',
@@ -171,6 +185,15 @@ class AppLocalizations {
       'plan.feature6': 'Histórico de conversas e memória',
       'plan.feature7': 'Experiência personalizada de sommelier',
       'plan.feature8': 'Acesso prioritário a novos recursos',
+      'chat.welcome': 'Olá, sou a Sommie, sua sommelière virtual!',
+      'chat.description': 'Sou uma IA apaixonada por vinhos — posso responder perguntas, sugerir harmonizações, compartilhar curiosidades sobre uvas, regiões, vinícolas e recomendar os melhores rótulos para o seu paladar.',
+      'chat.typing': 'Sommie está digitando...',
+      'chat.placeholder': 'Pergunte-me qualquer coisa...',
+      'chat.newChat': 'Nova Conversa',
+      'chat.noChats': 'Nenhuma conversa encontrada',
+      'chat.tryKeyword': 'Tente uma palavra-chave diferente',
+      'chat.searchPlaceholder': 'Buscar conversas...',
+      'chat.delete': 'Excluir conversa',
       'common.back': 'Voltar',
       'common.cancel': 'Cancelar',
       'common.continue': 'Continuar',

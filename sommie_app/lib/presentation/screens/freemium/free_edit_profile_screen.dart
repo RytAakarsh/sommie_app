@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../widgets/custom_app_bar.dart';
+import 'package:provider/provider.dart';
+import '../../../data/providers/auth_provider.dart';
 import '../../../data/models/user_model.dart';
 import '../../../core/utils/storage_helper.dart';
-import 'dart:convert';
-import '../../translations/translations_extension.dart';
 
 class FreeEditProfileScreen extends StatefulWidget {
   final VoidCallback onBack;
@@ -30,6 +29,7 @@ class _FreeEditProfileScreenState extends State<FreeEditProfileScreen> {
   String _selectedAvatar = '';
   String _selectedGender = '';
   String _selectedRole = '';
+  String _selectedAvatarName = '';
   
   final List<Map<String, String>> _avatars = [
     {
@@ -91,52 +91,70 @@ class _FreeEditProfileScreenState extends State<FreeEditProfileScreen> {
       _selectedGender = profile?['gender'] ?? '';
       _selectedAvatar = user?.avatar ?? profile?['avatar'] ?? '';
       _selectedRole = user?.role ?? profile?['role'] ?? '';
+      
+      final selected = _avatars.firstWhere(
+        (a) => a['img'] == _selectedAvatar,
+        orElse: () => {},
+      );
+      _selectedAvatarName = selected['name'] ?? '';
     });
   }
 
-  Future<void> _saveProfile() async {
-    if (_formKey.currentState?.validate() ?? false) {
-      final user = await StorageHelper.getUser();
-      final updatedUser = user?.copyWith(
-        name: _nameController.text,
-        email: _emailController.text,
-        avatar: _selectedAvatar,
-        role: _selectedRole,
-      );
-      
-      if (updatedUser != null) {
-        await StorageHelper.saveUser(updatedUser);
-      }
-      
-      final profile = {
-        'name': _nameController.text,
-        'email': _emailController.text,
-        'phone': _phoneController.text,
-        'cpf': _cpfController.text,
-        'address': _addressController.text,
-        'dob': _dobController.text,
-        'gender': _selectedGender,
-        'avatar': _selectedAvatar,
-        'role': _selectedRole,
-      };
-      
-      await StorageHelper.saveUserProfile(profile);
-      
-      if (mounted) {
-        widget.onBack();
-      }
+Future<void> _saveProfile() async {
+  if (_formKey.currentState?.validate() ?? false) {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final currentUser = authProvider.currentUser;
+    
+    if (currentUser == null) return;
+    
+    final selectedAvatar = _avatars.firstWhere(
+      (a) => a['img'] == _selectedAvatar,
+      orElse: () => {'role': _selectedRole},
+    );
+    
+    final updatedUser = currentUser.copyWith(
+      name: _nameController.text,
+      email: _emailController.text,
+      avatar: _selectedAvatar,
+      role: selectedAvatar['role'] ?? _selectedRole,
+    );
+    
+    print('💾 Saving profile with avatar: $_selectedAvatar');
+    print('💾 Role: ${selectedAvatar['role']}');
+    
+    // Save to auth provider
+    await authProvider.updateUser(updatedUser);
+    
+    // Double-check that it saved
+    final savedUser = await StorageHelper.getUser();
+    print('✅ Verification - Saved user avatar: ${savedUser?.avatar}');
+    
+    if (mounted) {
+      widget.onBack();
     }
   }
+}
+
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF3F1F1),
-      appBar: CustomAppBar(
-        title: 'Edit Your Profile',
-        showBackButton: true,
-        onBackPressed: widget.onBack,
-        showLanguageToggle: false,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Color(0xFF4B2B5F)),
+          onPressed: widget.onBack,
+        ),
+        title: const Text(
+          'Edit Your Profile',
+          style: TextStyle(
+            color: Color(0xFF4B2B5F),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        centerTitle: true,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -154,7 +172,6 @@ class _FreeEditProfileScreenState extends State<FreeEditProfileScreen> {
               ),
               const SizedBox(height: 16),
               
-              // Avatars Grid
               ..._avatars.map((avatar) => _buildAvatarTile(avatar)),
               
               const SizedBox(height: 24),
@@ -168,7 +185,6 @@ class _FreeEditProfileScreenState extends State<FreeEditProfileScreen> {
               ),
               const SizedBox(height: 16),
               
-              // User Info Form
               _buildTextField(
                 controller: _nameController,
                 label: 'Name',
@@ -241,7 +257,6 @@ class _FreeEditProfileScreenState extends State<FreeEditProfileScreen> {
               ),
               const SizedBox(height: 24),
               
-              // Action Buttons
               Row(
                 children: [
                   Expanded(
@@ -290,6 +305,7 @@ class _FreeEditProfileScreenState extends State<FreeEditProfileScreen> {
         setState(() {
           _selectedAvatar = avatar['img']!;
           _selectedRole = avatar['role']!;
+          _selectedAvatarName = avatar['name']!;
         });
       },
       child: Container(
@@ -306,9 +322,29 @@ class _FreeEditProfileScreenState extends State<FreeEditProfileScreen> {
         ),
         child: Row(
           children: [
-            CircleAvatar(
-              radius: 24,
-              backgroundImage: AssetImage(avatar['img']!),
+            ClipOval(
+              child: Image.asset(
+                avatar['img']!,
+                width: 48,
+                height: 48,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    width: 48,
+                    height: 48,
+                    color: const Color(0xFF4B2B5F),
+                    child: Center(
+                      child: Text(
+                        avatar['name']![0],
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -332,6 +368,12 @@ class _FreeEditProfileScreenState extends State<FreeEditProfileScreen> {
                 ],
               ),
             ),
+            if (isSelected)
+              const Icon(
+                Icons.check_circle,
+                color: Color(0xFF4B2B5F),
+                size: 24,
+              ),
           ],
         ),
       ),

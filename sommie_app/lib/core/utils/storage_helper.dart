@@ -13,46 +13,69 @@ class StorageHelper {
   static const String _chatSessionsPrefix = 'sommie_chat_';
   static const String _cellarCacheKey = 'sommie_cellar_cache';
 
+
+
+static Future<void> removeToken() async {
+  await _storage.delete(key: _tokenKey);
+}
+
+static Future<void> removeUser() async {
+  await _storage.delete(key: _userKey);
+}
+
   // Token methods
   static Future<void> saveToken(String token) async {
     await _storage.write(key: _tokenKey, value: token);
+    print('✅ Token saved');
   }
 
   static Future<String?> getToken() async {
-    return await _storage.read(key: _tokenKey);
-  }
-
-  static Future<void> removeToken() async {
-    await _storage.delete(key: _tokenKey);
+    final token = await _storage.read(key: _tokenKey);
+    print('🔑 Token retrieved: ${token != null ? 'Yes' : 'No'}');
+    return token;
   }
 
   // User methods
   static Future<void> saveUser(UserModel user) async {
     await _storage.write(key: _userKey, value: jsonEncode(user.toJson()));
+    print('✅ User saved: ${user.name} - Avatar: ${user.avatar}');
   }
 
   static Future<UserModel?> getUser() async {
     final userString = await _storage.read(key: _userKey);
     if (userString != null) {
-      return UserModel.fromJson(jsonDecode(userString));
+      try {
+        final user = UserModel.fromJson(jsonDecode(userString));
+        print('✅ User loaded: ${user.name} - Avatar: ${user.avatar}');
+        return user;
+      } catch (e) {
+        print('❌ Error parsing user: $e');
+        return null;
+      }
     }
+    print('❌ No user found');
     return null;
-  }
-
-  static Future<void> removeUser() async {
-    await _storage.delete(key: _userKey);
   }
 
   // Profile methods
   static Future<void> saveUserProfile(Map<String, dynamic> profile) async {
     await _storage.write(key: _profileKey, value: jsonEncode(profile));
+    print('✅ Profile saved: ${profile['name']} - Avatar: ${profile['avatar']}');
   }
 
   static Future<Map<String, dynamic>?> getUserProfile() async {
     final profileString = await _storage.read(key: _profileKey);
     if (profileString != null) {
-      return jsonDecode(profileString);
+      try {
+        final profile = jsonDecode(profileString);
+        print('✅ Profile loaded - Avatar: ${profile['avatar']}');
+        return profile;
+      } catch (e) {
+        print('❌ Error parsing profile: $e');
+        return null;
+      }
     }
+    print('❌ No profile found');
     return null;
   }
 
@@ -63,14 +86,23 @@ class StorageHelper {
       key: '$_chatSessionsPrefix$userId',
       value: jsonEncode(sessionsJson),
     );
+    print('✅ Saved ${sessions.length} chat sessions for user $userId');
   }
 
   static Future<List<ChatSession>> getChatSessions(String userId) async {
     final sessionsString = await _storage.read(key: '$_chatSessionsPrefix$userId');
     if (sessionsString != null) {
-      final List<dynamic> sessionsJson = jsonDecode(sessionsString);
-      return sessionsJson.map((j) => ChatSession.fromJson(j)).toList();
+      try {
+        final List<dynamic> sessionsJson = jsonDecode(sessionsString);
+        final sessions = sessionsJson.map((j) => ChatSession.fromJson(j)).toList();
+        print('✅ Loaded ${sessions.length} chat sessions for user $userId');
+        return sessions;
+      } catch (e) {
+        print('❌ Error parsing chat sessions: $e');
+        return [];
+      }
     }
+    print('❌ No chat sessions found for user $userId');
     return [];
   }
 
@@ -83,15 +115,32 @@ class StorageHelper {
     
     cache[userId] = wines.map((w) => w.toJson()).toList();
     await _storage.write(key: _cellarCacheKey, value: jsonEncode(cache));
+    print('✅ Saved ${wines.length} wines for user $userId');
+    
+    // Verify save
+    if (wines.isNotEmpty) {
+      print('✅ First wine saved: ${wines.first.name}');
+    }
   }
 
   static Future<List<WineModel>> getCellarWines(String userId) async {
     final cacheString = await _storage.read(key: _cellarCacheKey);
     if (cacheString != null) {
-      final Map<String, dynamic> cache = jsonDecode(cacheString);
-      final winesJson = cache[userId] as List? ?? [];
-      return winesJson.map((j) => WineModel.fromJson(j)).toList();
+      try {
+        final Map<String, dynamic> cache = jsonDecode(cacheString);
+        final winesJson = cache[userId] as List? ?? [];
+        final wines = winesJson.map((j) => WineModel.fromJson(j)).toList();
+        print('✅ Loaded ${wines.length} wines for user $userId');
+        if (wines.isNotEmpty) {
+          print('✅ First wine: ${wines.first.name}');
+        }
+        return wines;
+      } catch (e) {
+        print('❌ Error parsing cellar wines: $e');
+        return [];
+      }
     }
+    print('❌ No wines found for user $userId');
     return [];
   }
 
@@ -122,5 +171,6 @@ class StorageHelper {
 
   static Future<void> clearAll() async {
     await _storage.deleteAll();
+    print('✅ All storage cleared');
   }
 }

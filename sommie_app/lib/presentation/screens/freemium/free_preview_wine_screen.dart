@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../widgets/custom_app_bar.dart';
 import '../../../data/services/wine_service.dart';
 import '../../../core/utils/storage_helper.dart';
 import 'dart:convert';
-import '../../translations/translations_extension.dart';
-
+import 'dart:typed_data';
 class FreePreviewWineScreen extends StatefulWidget {
   final Function(String) setView;
 
@@ -20,6 +18,7 @@ class FreePreviewWineScreen extends StatefulWidget {
 class _FreePreviewWineScreenState extends State<FreePreviewWineScreen> {
   bool _isLoading = false;
   String? _previewImage;
+  String? _errorMessage;
   final WineService _wineService = WineService();
 
   @override
@@ -29,10 +28,20 @@ class _FreePreviewWineScreenState extends State<FreePreviewWineScreen> {
   }
 
   Future<void> _loadPreview() async {
-    final upload = await StorageHelper.getWineUpload();
-    if (upload != null) {
+    try {
+      final upload = await StorageHelper.getWineUpload();
+      if (upload != null) {
+        setState(() {
+          _previewImage = upload['preview'];
+        });
+      } else {
+        setState(() {
+          _errorMessage = 'No image found. Please try again.';
+        });
+      }
+    } catch (e) {
       setState(() {
-        _previewImage = upload['preview'];
+        _errorMessage = 'Error loading image: $e';
       });
     }
   }
@@ -40,15 +49,25 @@ class _FreePreviewWineScreenState extends State<FreePreviewWineScreen> {
   Future<void> _confirmScan() async {
     setState(() {
       _isLoading = true;
+      _errorMessage = null;
     });
 
     try {
       final upload = await StorageHelper.getWineUpload();
       final user = await StorageHelper.getUser();
       
-      if (upload == null || user == null) {
-        throw Exception('Missing data');
+      if (upload == null) {
+        throw Exception('Upload data not found');
       }
+      
+      if (user == null) {
+        throw Exception('User not found. Please login again.');
+      }
+
+      print('Calling uploadWineLabel with:');
+      print('userId: ${user.userId}');
+      print('fileName: ${upload['fileName']}');
+      print('planType: free');
 
       final result = await _wineService.uploadWineLabel(
         userId: user.userId,
@@ -57,18 +76,19 @@ class _FreePreviewWineScreenState extends State<FreePreviewWineScreen> {
         fileBase64: upload['base64'],
       );
 
+      print('Upload result: $result');
+
+      // Save the result
       await StorageHelper.saveWineResult(result);
 
       if (mounted) {
         widget.setView('cellar-confirm');
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Scan failed: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      print('Scan failed error: $e');
+      setState(() {
+        _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      });
     } finally {
       if (mounted) {
         setState(() {
@@ -82,14 +102,38 @@ class _FreePreviewWineScreenState extends State<FreePreviewWineScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFFAF7FC),
-      appBar: CustomAppBar(
-        title: 'Preview Wine Label',
-        showBackButton: true,
-        onBackPressed: () => widget.setView('cellar-add'),
-        showLanguageToggle: false,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Color(0xFF4B2B5F)),
+          onPressed: () => widget.setView('cellar-add'),
+        ),
+        title: const Text(
+          'Preview Wine Label',
+          style: TextStyle(
+            color: Color(0xFF4B2B5F),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        centerTitle: true,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4B2B5F)),
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    'Scanning wine label...',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ],
+              ),
+            )
           : SingleChildScrollView(
               padding: const EdgeInsets.all(24),
               child: Column(
@@ -106,6 +150,31 @@ class _FreePreviewWineScreenState extends State<FreePreviewWineScreen> {
                   ),
                   
                   const SizedBox(height: 24),
+                  
+                  // Error message if any
+                  if (_errorMessage != null) ...[
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.red.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.error_outline, color: Colors.red.shade700),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              _errorMessage!,
+                              style: TextStyle(color: Colors.red.shade700),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
                   
                   // Preview Image
                   if (_previewImage != null) ...[
@@ -124,11 +193,19 @@ class _FreePreviewWineScreenState extends State<FreePreviewWineScreen> {
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(16),
                         child: Image.memory(
-                          base64Decode(
-                            _previewImage!.split(',').last,
-                          ),
+                          _getImageBytes(),
                           height: 300,
+                          width: double.infinity,
                           fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              height: 300,
+                              color: Colors.grey.shade200,
+                              child: const Center(
+                                child: Text('Failed to load image'),
+                              ),
+                            );
+                          },
                         ),
                       ),
                     ),
@@ -151,14 +228,15 @@ class _FreePreviewWineScreenState extends State<FreePreviewWineScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: _confirmScan,
+                      onPressed: _previewImage != null ? _confirmScan : null,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF4B2B5F),
+                        backgroundColor: const Color(0xFF7f488b),
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
+                        disabledBackgroundColor: Colors.grey.shade300,
                       ),
                       child: const Text(
                         'Confirm & Scan Label',
@@ -222,5 +300,24 @@ class _FreePreviewWineScreenState extends State<FreePreviewWineScreen> {
             ),
     );
   }
-}
 
+  Uint8List _getImageBytes() {
+    try {
+      if (_previewImage!.startsWith('data:image')) {
+        // Remove the data URL prefix
+        final base64String = _previewImage!.split(',').last;
+        return base64Decode(base64String);
+      } else {
+        return base64Decode(_previewImage!);
+      }
+    } catch (e) {
+      print('Error decoding image: $e');
+      return Uint8List(0);
+    }
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
+}

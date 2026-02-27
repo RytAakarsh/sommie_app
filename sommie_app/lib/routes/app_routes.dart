@@ -16,46 +16,32 @@ import '../presentation/screens/pro/pro_dashboard_screen.dart';
 import '../presentation/screens/pro/pro_plan_flow_screen.dart';
 
 class AppRoutes {
-  // Splash
   static const String splash = '/';
-  
-  // Auth
   static const String login = '/login';
   static const String signup = '/signup';
   static const String planSelection = '/plan-selection';
-  
-  // Forgot Password
   static const String forgotPassword = '/forgot-password';
   static const String forgotOtp = '/forgot-otp';
   static const String forgotReset = '/forgot-reset';
-  
-  // Freemium
   static const String freemiumChat = '/freemium-chat';
   static const String freeEditProfile = '/free-edit-profile';
   static const String freeCellar = '/free-cellar';
   static const String freeAddWine = '/free-add-wine';
   static const String freePreviewWine = '/free-preview-wine';
   static const String freeConfirmWine = '/free-confirm-wine';
-  
-  // Pro
   static const String proDashboard = '/pro-dashboard';
   static const String proPlanFlow = '/pro-plan-flow';
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
-      // Splash
       case splash:
         return MaterialPageRoute(builder: (_) => const SplashScreen());
-      
-      // Auth
       case login:
         return MaterialPageRoute(builder: (_) => const LoginScreen());
       case signup:
         return MaterialPageRoute(builder: (_) => const SignupScreen());
       case planSelection:
         return MaterialPageRoute(builder: (_) => const PlanSelectionScreen());
-      
-      // Forgot Password
       case forgotPassword:
         return MaterialPageRoute(builder: (_) => const ForgotPasswordEmailScreen());
       case forgotOtp:
@@ -73,8 +59,6 @@ class AppRoutes {
             otp: args?['otp'] ?? '',
           ),
         );
-      
-      // Freemium
       case freemiumChat:
         return MaterialPageRoute(builder: (_) => const FreemiumChatScreen());
       case freeEditProfile:
@@ -115,15 +99,10 @@ class AppRoutes {
             },
           ),
         );
-      
-      // Pro
       case proDashboard:
         return MaterialPageRoute(builder: (_) => const ProDashboardScreen());
       case proPlanFlow:
-        return MaterialPageRoute(builder: (_) => const Scaffold(
-          body: Center(child: Text('Pro Plan Flow - Coming Soon')),
-        ));
-      
+        return MaterialPageRoute(builder: (_) => const ProPlanFlowScreen());
       default:
         return MaterialPageRoute(builder: (_) => const SplashScreen());
     }

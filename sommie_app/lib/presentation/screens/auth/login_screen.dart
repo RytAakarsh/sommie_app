@@ -6,6 +6,7 @@ import '../../widgets/loading_overlay.dart';
 import '../../../core/utils/validators.dart';
 import '../../../data/providers/auth_provider.dart';
 import '../../../data/providers/language_provider.dart';
+import '../../../data/providers/cellar_provider.dart';
 import '../../../routes/app_routes.dart';
 import '../../translations/translations_extension.dart';
 
@@ -165,14 +166,24 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _handleLogin() async {
-    if (_formKey.currentState?.validate() ?? false) {
-      final success = await Provider.of<AuthProvider>(context, listen: false).login(
+  if (_formKey.currentState?.validate() ?? false) {
+    setState(() {
+      _error = null;
+    });
+
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final success = await authProvider.login(
         _emailController.text.trim(),
         _passwordController.text,
       );
 
       if (success && mounted) {
-        final user = Provider.of<AuthProvider>(context, listen: false).currentUser;
+        // Refresh cellar provider after login
+        final cellarProvider = Provider.of<CellarProvider>(context, listen: false);
+        await cellarProvider.refreshAfterLogin();
+        
+        final user = authProvider.currentUser;
         if (user?.plan == 'PRO') {
           Navigator.pushReplacementNamed(context, AppRoutes.proDashboard);
         } else {
@@ -183,8 +194,13 @@ class _LoginScreenState extends State<LoginScreen> {
           _error = context.tr('auth.invalidCredentials') ?? 'Invalid email or password';
         });
       }
-    }
+    } catch (e) {
+      setState(() {
+        _error = e.toString().replaceFirst('Exception: ', '');
+      });
+    } 
   }
+}
 
   @override
   void dispose() {

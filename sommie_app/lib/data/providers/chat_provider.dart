@@ -30,26 +30,41 @@ class ChatProvider extends ChangeNotifier {
     final user = await StorageHelper.getUser();
     if (user != null) {
       _userId = user.userId;
-      _loadSessions();
+      await _loadSessions();
+      print('✅ ChatProvider loaded for user: ${user.name}');
     }
   }
 
   Future<void> _loadSessions() async {
-    if (_userId == null) return;
-    final sessions = await StorageHelper.getChatSessions(_userId!);
-    _sessions = sessions;
-    
-    if (_sessions.isEmpty) {
-      _createNewSession();
-    } else {
-      _activeSessionId = _sessions.first.id;
+    if (_userId == null) {
+      print('❌ Cannot load chats: No userId');
+      return;
     }
-    notifyListeners();
+    
+    try {
+      final sessions = await StorageHelper.getChatSessions(_userId!);
+      _sessions = sessions;
+      print('✅ Loaded ${_sessions.length} chat sessions');
+      
+      if (_sessions.isEmpty) {
+        await _createNewSession();
+      } else {
+        _activeSessionId = _sessions.first.id;
+      }
+      notifyListeners();
+    } catch (e) {
+      print('❌ Error loading sessions: $e');
+    }
   }
 
   Future<void> _saveSessions() async {
     if (_userId == null) return;
-    await StorageHelper.saveChatSessions(_userId!, _sessions);
+    try {
+      await StorageHelper.saveChatSessions(_userId!, _sessions);
+      print('✅ Saved ${_sessions.length} chat sessions');
+    } catch (e) {
+      print('❌ Error saving sessions: $e');
+    }
   }
 
   Future<void> _createNewSession() async {
@@ -61,6 +76,7 @@ class ChatProvider extends ChangeNotifier {
     _activeSessionId = newSession.id;
     await _saveSessions();
     notifyListeners();
+    print('✅ Created new chat session: ${newSession.id}');
   }
 
   Future<void> createNewSession() async {
@@ -70,6 +86,7 @@ class ChatProvider extends ChangeNotifier {
   Future<void> switchSession(String sessionId) async {
     if (_sessions.any((s) => s.id == sessionId)) {
       _activeSessionId = sessionId;
+      print('✅ Switched to session: $sessionId');
       notifyListeners();
     }
   }
@@ -77,9 +94,7 @@ class ChatProvider extends ChangeNotifier {
   Future<void> sendMessage(String text) async {
     if (text.trim().isEmpty || _isLoading || _userId == null) return;
 
-    // Add user message
     await _addMessage('user', text);
-
     _setLoading(true);
 
     try {
@@ -93,9 +108,9 @@ class ChatProvider extends ChangeNotifier {
         token: token,
       );
 
-      // Add bot reply
       await _addMessage('bot', reply);
     } catch (e) {
+      print('❌ Chat error: $e');
       String errorMessage = '⚠️ Sorry, I couldn\'t process your request. Please try again.';
       
       if (e.toString().contains('Unauthorized') || e.toString().contains('authentication')) {
@@ -137,6 +152,7 @@ class ChatProvider extends ChangeNotifier {
     }
     
     await _saveSessions();
+    print('✅ Deleted session: $sessionId');
     notifyListeners();
   }
 
