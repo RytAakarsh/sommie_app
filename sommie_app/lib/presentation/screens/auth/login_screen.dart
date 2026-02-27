@@ -6,6 +6,7 @@ import '../../widgets/loading_overlay.dart';
 import '../../../core/utils/validators.dart';
 import '../../../data/providers/auth_provider.dart';
 import '../../../data/providers/language_provider.dart';
+import '../../../data/providers/chat_provider.dart';
 import '../../../data/providers/cellar_provider.dart';
 import '../../../routes/app_routes.dart';
 import '../../translations/translations_extension.dart';
@@ -22,14 +23,14 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   String? _error;
+  bool _isLoading = false;
 
   @override
   Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context);
     final languageProvider = Provider.of<LanguageProvider>(context);
 
     return LoadingOverlay(
-      isLoading: authProvider.isLoading,
+      isLoading: _isLoading,
       child: Scaffold(
         backgroundColor: Colors.white,
         appBar: AppBar(
@@ -48,21 +49,43 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 40),
+                const SizedBox(height: 20),
                 
-                // Logo
+                // Sommie Avatar instead of wine glass
                 Center(
                   child: Container(
-                    width: 100,
-                    height: 100,
+                    width: 120,
+                    height: 120,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF4E8FB),
                       shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF4B2B5F).withOpacity(0.2),
+                          spreadRadius: 2,
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
-                    child: const Icon(
-                      Icons.wine_bar,
-                      size: 50,
-                      color: Color(0xFF4B2B5F),
+                    child: ClipOval(
+                      child: Image.asset(
+                        'assets/images/avatar.webp',
+                        width: 120,
+                        height: 120,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            width: 120,
+                            height: 120,
+                            color: const Color(0xFFF3E8FF),
+                            child: const Icon(
+                              Icons.person,
+                              size: 60,
+                              color: Color(0xFF4B2B5F),
+                            ),
+                          );
+                        },
+                      ),
                     ),
                   ),
                 ),
@@ -108,21 +131,21 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 8),
                 
                 // Forgot Password
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () {
-                      Navigator.pushNamed(context, AppRoutes.forgotPassword);
-                    },
-                    child: Text(
-                      context.tr('auth.forgotPassword') ?? 'Forgot Password?',
-                      style: const TextStyle(
-                        color: Color(0xFF4B2B5F),
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                ),
+                // Align(
+                //   alignment: Alignment.centerRight,
+                //   child: TextButton(
+                //     onPressed: () {
+                //       Navigator.pushNamed(context, AppRoutes.forgotPassword);
+                //     },
+                //     child: Text(
+                //       context.tr('auth.forgotPassword') ?? 'Forgot Password?',
+                //       style: const TextStyle(
+                //         color: Color(0xFF4B2B5F),
+                //         fontSize: 14,
+                //       ),
+                //     ),
+                //   ),
+                // ),
                 
                 const SizedBox(height: 24),
                 
@@ -166,41 +189,61 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _handleLogin() async {
-  if (_formKey.currentState?.validate() ?? false) {
-    setState(() {
-      _error = null;
-    });
-
-    try {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final success = await authProvider.login(
-        _emailController.text.trim(),
-        _passwordController.text,
-      );
-
-      if (success && mounted) {
-        // Refresh cellar provider after login
-        final cellarProvider = Provider.of<CellarProvider>(context, listen: false);
-        await cellarProvider.refreshAfterLogin();
-        
-        final user = authProvider.currentUser;
-        if (user?.plan == 'PRO') {
-          Navigator.pushReplacementNamed(context, AppRoutes.proDashboard);
-        } else {
-          Navigator.pushReplacementNamed(context, AppRoutes.freemiumChat);
-        }
-      } else {
-        setState(() {
-          _error = context.tr('auth.invalidCredentials') ?? 'Invalid email or password';
-        });
-      }
-    } catch (e) {
+    if (_formKey.currentState?.validate() ?? false) {
       setState(() {
-        _error = e.toString().replaceFirst('Exception: ', '');
+        _error = null;
+        _isLoading = true;
       });
-    } 
+
+      try {
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        final success = await authProvider.login(
+          _emailController.text.trim(),
+          _passwordController.text,
+        );
+
+        if (success && mounted) {
+          print('✅ Login successful, refreshing providers...');
+          
+          try {
+            final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+            final cellarProvider = Provider.of<CellarProvider>(context, listen: false);
+            
+            await chatProvider.refreshAfterLogin();
+            await cellarProvider.refreshAfterLogin();
+            
+            print('✅ Providers refreshed successfully');
+          } catch (e) {
+            print('❌ Error refreshing providers: $e');
+          }
+          
+          final user = authProvider.currentUser;
+          print('✅ User plan: ${user?.plan}');
+          
+          if (user?.plan == 'PRO') {
+            Navigator.pushReplacementNamed(context, AppRoutes.proDashboard);
+          } else {
+            Navigator.pushReplacementNamed(context, AppRoutes.freemiumChat);
+          }
+        } else {
+          setState(() {
+            _error = context.tr('auth.invalidCredentials') ?? 'Invalid email or password';
+          });
+        }
+      } catch (e) {
+        print('❌ Login error: $e');
+        setState(() {
+          _error = e.toString().replaceFirst('Exception: ', '');
+        });
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
+    }
   }
-}
 
   @override
   void dispose() {

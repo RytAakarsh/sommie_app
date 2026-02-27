@@ -26,7 +26,7 @@ class CellarProvider extends ChangeNotifier {
         print('✅ CellarProvider: User loaded: ${user.name} (ID: ${_userId})');
         await loadWines();
       } else {
-        print('❌ CellarProvider: No user found - clearing wines');
+        print('❌ CellarProvider: No user found');
         _wines = [];
         notifyListeners();
       }
@@ -39,32 +39,19 @@ class CellarProvider extends ChangeNotifier {
   Future<void> loadWines() async {
     if (_userId == null) {
       print('❌ CellarProvider: Cannot load wines - No userId');
-      _wines = [];
-      notifyListeners();
       return;
     }
     
     try {
-      // First try to load from local storage
-      final localWines = await StorageHelper.getCellarWines(_userId!);
+      // Load from local storage
+      _wines = await StorageHelper.getCellarWines(_userId!);
+      print('✅ CellarProvider: Loaded ${_wines.length} wines from local storage');
       
-      if (localWines.isNotEmpty) {
-        _wines = localWines;
-        print('✅ CellarProvider: Loaded ${_wines.length} wines from local storage');
-      } else {
-        // If no local wines, try to fetch from server
-        print('🔄 No local wines, fetching from server...');
-        final serverWines = await _wineService.getUserWines(_userId!);
-        
-        if (serverWines.isNotEmpty) {
-          _wines = serverWines;
-          // Save to local storage
-          await StorageHelper.saveCellarWines(_userId!, _wines);
-          print('✅ CellarProvider: Loaded ${_wines.length} wines from server');
-        } else {
-          _wines = [];
-          print('✅ No wines found for user');
-        }
+      // If no local wines, try to fetch from server
+      if (_wines.isEmpty) {
+        print('🔄 No local wines, attempting to fetch from server...');
+        // Note: This requires a server endpoint to fetch wines
+        // You'll need to implement this endpoint
       }
       
       notifyListeners();
@@ -75,25 +62,10 @@ class CellarProvider extends ChangeNotifier {
     }
   }
 
-  // Call this method after login to refresh wines
-  Future<void> refreshAfterLogin() async {
-    final user = await StorageHelper.getUser();
-    if (user != null) {
-      _userId = user.userId;
-      await loadWines();
-    }
-  }
-
   Future<void> addWine(WineModel wine) async {
     if (_userId == null) {
       print('❌ CellarProvider: Cannot add wine - No userId');
-      
-      // Try to reload user
-      await _loadUser();
-      
-      if (_userId == null) {
-        throw Exception('User not authenticated');
-      }
+      throw Exception('User not authenticated');
     }
     
     try {
@@ -120,18 +92,6 @@ class CellarProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> updateWine(WineModel wine) async {
-    if (_userId == null) return;
-
-    final index = _wines.indexWhere((w) => w.id == wine.id);
-    if (index != -1) {
-      _wines[index] = wine;
-      await StorageHelper.saveCellarWines(_userId!, _wines);
-      print('✅ CellarProvider: Updated wine: ${wine.name}');
-      notifyListeners();
-    }
-  }
-
   Future<void> deleteWine(String wineId) async {
     if (_userId == null) return;
 
@@ -143,6 +103,15 @@ class CellarProvider extends ChangeNotifier {
 
   Future<void> refreshWines() async {
     await loadWines();
+  }
+
+  // Call this after login to ensure data is loaded
+  Future<void> refreshAfterLogin() async {
+    final user = await StorageHelper.getUser();
+    if (user != null) {
+      _userId = user.userId;
+      await loadWines();
+    }
   }
 
   List<String> getUniqueCountries() {

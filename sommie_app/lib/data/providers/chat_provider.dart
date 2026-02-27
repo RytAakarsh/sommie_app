@@ -37,14 +37,13 @@ class ChatProvider extends ChangeNotifier {
 
   Future<void> _loadSessions() async {
     if (_userId == null) {
-      print('❌ Cannot load chats: No userId');
+      print('❌ ChatProvider: Cannot load sessions - No userId');
       return;
     }
     
     try {
-      final sessions = await StorageHelper.getChatSessions(_userId!);
-      _sessions = sessions;
-      print('✅ Loaded ${_sessions.length} chat sessions');
+      _sessions = await StorageHelper.getChatSessions(_userId!);
+      print('✅ ChatProvider: Loaded ${_sessions.length} chat sessions');
       
       if (_sessions.isEmpty) {
         await _createNewSession();
@@ -53,18 +52,14 @@ class ChatProvider extends ChangeNotifier {
       }
       notifyListeners();
     } catch (e) {
-      print('❌ Error loading sessions: $e');
+      print('❌ ChatProvider: Error loading sessions: $e');
     }
   }
 
   Future<void> _saveSessions() async {
     if (_userId == null) return;
-    try {
-      await StorageHelper.saveChatSessions(_userId!, _sessions);
-      print('✅ Saved ${_sessions.length} chat sessions');
-    } catch (e) {
-      print('❌ Error saving sessions: $e');
-    }
+    await StorageHelper.saveChatSessions(_userId!, _sessions);
+    print('✅ Saved ${_sessions.length} chat sessions');
   }
 
   Future<void> _createNewSession() async {
@@ -154,6 +149,15 @@ class ChatProvider extends ChangeNotifier {
     await _saveSessions();
     print('✅ Deleted session: $sessionId');
     notifyListeners();
+  }
+
+  // Call after login to reload sessions
+  Future<void> refreshAfterLogin() async {
+    final user = await StorageHelper.getUser();
+    if (user != null) {
+      _userId = user.userId;
+      await _loadSessions();
+    }
   }
 
   void _setLoading(bool loading) {

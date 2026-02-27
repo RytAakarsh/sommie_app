@@ -1,7 +1,7 @@
-import 'dart:async';
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import '../models/auth_response.dart';
+import '../models/user_model.dart';
 import '../../core/constants/api_endpoints.dart';
 
 class AuthService {
@@ -9,7 +9,6 @@ class AuthService {
     headers: {'Content-Type': 'application/json'},
     connectTimeout: const Duration(seconds: 30),
     receiveTimeout: const Duration(seconds: 30),
-    sendTimeout: const Duration(seconds: 30),
   ));
 
   Future<AuthResponse> login(String email, String password) async {
@@ -33,22 +32,7 @@ class AuthService {
       }
     } on DioException catch (e) {
       print('❌ Login error: ${e.message}');
-      
-      if (e.type == DioExceptionType.connectionTimeout ||
-          e.type == DioExceptionType.receiveTimeout ||
-          e.type == DioExceptionType.sendTimeout) {
-        throw Exception(
-          'O servidor não está respondendo. Por favor, tente novamente em alguns instantes.\n\n'
-          'The server is not responding. Please try again in a few moments.'
-        );
-      } else if (e.type == DioExceptionType.connectionError) {
-        throw Exception(
-          'Erro de conexão. Verifique sua internet.\n\n'
-          'Connection error. Please check your internet.'
-        );
-      } else {
-        throw Exception(_handleDioError(e));
-      }
+      throw Exception(_handleDioError(e));
     }
   }
 
@@ -70,6 +54,7 @@ class AuthService {
         'age': age,
         'country': country,
         'gender': gender,
+        // Backend should default to FREE plan
       };
       
       print('📝 Signup body: $body');
@@ -88,22 +73,47 @@ class AuthService {
       }
     } on DioException catch (e) {
       print('❌ Signup error: ${e.message}');
+      throw Exception(_handleDioError(e));
+    }
+  }
+
+  // Upgrade user to PRO on backend
+  Future<UserModel> upgradeToPro(String userId, String token) async {
+    try {
+      print('🔄 Upgrading user to PRO on backend: ${ApiEndpoints.upgradePlan}');
       
-      if (e.type == DioExceptionType.connectionTimeout ||
-          e.type == DioExceptionType.receiveTimeout ||
-          e.type == DioExceptionType.sendTimeout) {
-        throw Exception(
-          'O servidor não está respondendo. Por favor, tente novamente em alguns instantes.\n\n'
-          'The server is not responding. Please try again in a few moments.'
-        );
-      } else if (e.type == DioExceptionType.connectionError) {
-        throw Exception(
-          'Erro de conexão. Verifique sua internet.\n\n'
-          'Connection error. Please check your internet.'
+      final response = await _dio.post(
+        ApiEndpoints.upgradePlan,
+        options: Options(
+          headers: {'Authorization': 'Bearer $token'},
+        ),
+        data: jsonEncode({
+          'userId': userId,
+          'plan': 'PRO',
+        }),
+      );
+
+      print('✅ Upgrade response status: ${response.statusCode}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        // Return updated user from response
+        if (response.data['user'] != null) {
+          return UserModel.fromJson(response.data['user']);
+        }
+        // If no user returned, create one with PRO plan
+        return UserModel(
+          userId: userId,
+          name: '',
+          email: '',
+          plan: 'PRO',
+          token: token,
         );
       } else {
-        throw Exception(_handleDioError(e));
+        throw Exception(response.data['message'] ?? 'Upgrade failed');
       }
+    } on DioException catch (e) {
+      print('❌ Upgrade error: ${e.message}');
+      throw Exception(_handleDioError(e));
     }
   }
 
@@ -116,6 +126,12 @@ class AuthService {
         return data['error'].toString();
       }
       return 'Server error: ${e.response?.statusCode}';
+    } else if (e.type == DioExceptionType.connectionTimeout) {
+      return 'Connection timeout. Please check your internet.';
+    } else if (e.type == DioExceptionType.receiveTimeout) {
+      return 'Receive timeout. Please try again.';
+    } else if (e.type == DioExceptionType.connectionError) {
+      return 'Network error. Please check your connection.';
     } else {
       return 'Network error: ${e.message}';
     }

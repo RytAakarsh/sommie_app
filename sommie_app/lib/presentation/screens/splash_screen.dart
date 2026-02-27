@@ -4,7 +4,6 @@ import '../../data/providers/auth_provider.dart';
 import '../../routes/app_routes.dart';
 import '../widgets/loading_overlay.dart';
 import '../../core/constants/app_constants.dart';
-import '../translations/translations_extension.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -45,40 +44,74 @@ class _SplashScreenState extends State<SplashScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Logo
+            // Sommie Avatar instead of wine glass
             Container(
-              width: 120,
-              height: 120,
+              width: 140,
+              height: 140,
               decoration: BoxDecoration(
-                color: Colors.white,
                 shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.white,
+                  width: 3,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.white.withOpacity(0.3),
+                    spreadRadius: 5,
+                    blurRadius: 15,
+                    offset: const Offset(0, 0),
+                  ),
+                ],
               ),
-              child: const Icon(
-                Icons.wine_bar,
-                size: 60,
-                color: AppConstants.primaryColor,
+              child: ClipOval(
+                child: Image.asset(
+                  'assets/images/avatar.webp',
+                  width: 140,
+                  height: 140,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      width: 140,
+                      height: 140,
+                      color: Colors.white,
+                      child: const Icon(
+                        Icons.wine_bar,
+                        size: 70,
+                        color: AppConstants.primaryColor,
+                      ),
+                    );
+                  },
+                ),
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 32),
+            
             // App Name
             const Text(
               'Sommie',
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 32,
+                fontSize: 36,
                 fontWeight: FontWeight.bold,
+                letterSpacing: 2,
               ),
             ),
+            
             const SizedBox(height: 8),
+            
             // Subtitle
             Text(
-              context.tr('app.subtitle'),
-              style: const TextStyle(
-                color: Colors.white70,
+              'Sommelier Virtual',
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.9),
                 fontSize: 16,
+                fontWeight: FontWeight.w300,
+                letterSpacing: 1,
               ),
             ),
+            
             const SizedBox(height: 48),
+            
             // Loading indicator
             const CircularProgressIndicator(
               valueColor: AlwaysStoppedAnimation<Color>(Colors.white),

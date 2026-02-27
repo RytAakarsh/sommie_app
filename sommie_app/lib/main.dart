@@ -8,6 +8,7 @@ import 'data/providers/language_provider.dart';
 import 'data/providers/auth_provider.dart';
 import 'data/providers/chat_provider.dart';
 import 'data/providers/cellar_provider.dart';
+import 'data/providers/pro_view_provider.dart';
 import 'presentation/screens/splash_screen.dart';
 import 'routes/app_routes.dart';
 import 'presentation/translations/translations_extension.dart';
@@ -25,6 +26,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => ChatProvider()),
         ChangeNotifierProvider(create: (_) => CellarProvider()),
+        ChangeNotifierProvider(create: (_) => ProViewProvider()), // Added ProViewProvider
       ],
       child: const MyApp(),
     ),
@@ -62,7 +64,6 @@ class MyApp extends StatelessWidget {
     );
   }
 }
-
 
 // AppLocalizations class for translations
 class AppLocalizations {
@@ -104,6 +105,8 @@ class AppLocalizations {
       'signup.countryRequired': 'Country is required',
       'signup.nextStep': 'Next: Choose Your Plan',
       'signup.error': 'Signup failed',
+      
+      // Plans
       'plan.title': 'Choose Your Plan',
       'plan.freemium': 'Freemium',
       'plan.pro': 'PRO',
@@ -121,6 +124,8 @@ class AppLocalizations {
       'plan.feature6': 'Conversation history & memory',
       'plan.feature7': 'Personalized sommelier experience',
       'plan.feature8': 'Priority access to new features',
+      
+      // Chat
       'chat.welcome': "Hi, I'm Sommie, your virtual sommelier!",
       'chat.description': "I'm an AI passionate about wines — I can answer questions, suggest pairings, share curiosities about grapes, regions, wineries, and recommend the best labels for your palate.",
       'chat.typing': 'Sommie is typing...',
@@ -130,6 +135,49 @@ class AppLocalizations {
       'chat.tryKeyword': 'Try a different keyword',
       'chat.searchPlaceholder': 'Search chats...',
       'chat.delete': 'Delete chat',
+      
+      // PRO Dashboard
+      'pro.welcome': 'Welcome to PRO',
+      'pro.wineTourism': 'Wine Tourism Planning',
+      'pro.tripsPlanned': 'Trips Planned',
+      'pro.restaurantSommelier': 'Restaurant Sommelier',
+      'pro.pairingGuide': 'Pairing Guide',
+      'pro.virtualCellar': 'Virtual Wine Cellar',
+      'pro.wineTracked': 'Wines Tracked',
+      'pro.benefitsClub': 'Benefits Club',
+      'pro.availableCoupons': 'Available Coupons',
+      'pro.sommieGame': 'Sommie Game',
+      'pro.score': 'Score',
+      'pro.profile': 'Profile',
+      'pro.manage': 'Manage',
+      'pro.personal': 'Personal',
+      'pro.yourHighlights': 'Your Highlights',
+      'pro.seeAll': 'See all',
+      'pro.latestTrips': 'Latest Tourism Trips',
+      
+      // PRO Benefits
+      'benefits.club': 'Benefits Club',
+      'benefits.activeDiscounts': 'Active discounts available',
+      'benefits.redeemNow': 'Redeem Now',
+      'benefits.wineEcommerce': 'Wine E-commerce',
+      'benefits.partners': 'Partners',
+      'benefits.wineStores': 'Wine Stores',
+      'benefits.restaurants': 'Restaurants',
+      'benefits.gameRewards': 'Game Rewards',
+      'benefits.accessCategory': 'Access category',
+      
+      // PRO Game
+      'game.currentScore': 'Current Score',
+      'game.pointsUntilLevel': 'Points until Level 6',
+      'game.levelStart': 'Lvl 5',
+      'game.levelTarget': 'Lvl 6',
+      'game.playNow': 'Play Now',
+      'game.upcomingRewards': 'Upcoming Rewards',
+      'game.globalRanking': 'Global Ranking',
+      'game.yourPosition': 'Your Position',
+      'game.action': 'Action',
+      
+      // Common
       'common.back': 'Back',
       'common.cancel': 'Cancel',
       'common.continue': 'Continue',
@@ -168,6 +216,8 @@ class AppLocalizations {
       'signup.countryRequired': 'País é obrigatório',
       'signup.nextStep': 'Próximo: Escolha Seu Plano',
       'signup.error': 'Falha no cadastro',
+      
+      // Plans
       'plan.title': 'Escolha Seu Plano',
       'plan.freemium': 'Freemium',
       'plan.pro': 'PRO',
@@ -185,6 +235,8 @@ class AppLocalizations {
       'plan.feature6': 'Histórico de conversas e memória',
       'plan.feature7': 'Experiência personalizada de sommelier',
       'plan.feature8': 'Acesso prioritário a novos recursos',
+      
+      // Chat
       'chat.welcome': 'Olá, sou a Sommie, sua sommelière virtual!',
       'chat.description': 'Sou uma IA apaixonada por vinhos — posso responder perguntas, sugerir harmonizações, compartilhar curiosidades sobre uvas, regiões, vinícolas e recomendar os melhores rótulos para o seu paladar.',
       'chat.typing': 'Sommie está digitando...',
@@ -194,6 +246,49 @@ class AppLocalizations {
       'chat.tryKeyword': 'Tente uma palavra-chave diferente',
       'chat.searchPlaceholder': 'Buscar conversas...',
       'chat.delete': 'Excluir conversa',
+      
+      // PRO Dashboard
+      'pro.welcome': 'Bem-vindo ao PRO',
+      'pro.wineTourism': 'Planejamento de Enoturismo',
+      'pro.tripsPlanned': 'Viagens Planejadas',
+      'pro.restaurantSommelier': 'Sommelier de Restaurante',
+      'pro.pairingGuide': 'Guia de Harmonização',
+      'pro.virtualCellar': 'Adega Virtual',
+      'pro.wineTracked': 'Vinhos Rastreados',
+      'pro.benefitsClub': 'Clube de Benefícios',
+      'pro.availableCoupons': 'Cupons Disponíveis',
+      'pro.sommieGame': 'Jogo Sommie',
+      'pro.score': 'Pontuação',
+      'pro.profile': 'Perfil',
+      'pro.manage': 'Gerenciar',
+      'pro.personal': 'Pessoal',
+      'pro.yourHighlights': 'Seus Destaques',
+      'pro.seeAll': 'Ver todos',
+      'pro.latestTrips': 'Últimas Viagens Turísticas',
+      
+      // PRO Benefits
+      'benefits.club': 'Clube de Benefícios',
+      'benefits.activeDiscounts': 'Descontos ativos disponíveis',
+      'benefits.redeemNow': 'Resgatar Agora',
+      'benefits.wineEcommerce': 'E-commerce de Vinhos',
+      'benefits.partners': 'Parceiros',
+      'benefits.wineStores': 'Lojas de Vinho',
+      'benefits.restaurants': 'Restaurantes',
+      'benefits.gameRewards': 'Recompensas do Jogo',
+      'benefits.accessCategory': 'Acessar categoria',
+      
+      // PRO Game
+      'game.currentScore': 'Pontuação Atual',
+      'game.pointsUntilLevel': 'Pontos até o Nível 6',
+      'game.levelStart': 'Nv 5',
+      'game.levelTarget': 'Nv 6',
+      'game.playNow': 'Jogar Agora',
+      'game.upcomingRewards': 'Próximas Recompensas',
+      'game.globalRanking': 'Ranking Global',
+      'game.yourPosition': 'Sua Posição',
+      'game.action': 'Ação',
+      
+      // Common
       'common.back': 'Voltar',
       'common.cancel': 'Cancelar',
       'common.continue': 'Continuar',

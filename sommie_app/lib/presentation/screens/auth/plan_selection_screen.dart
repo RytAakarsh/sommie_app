@@ -311,26 +311,39 @@ class _PlanSelectionScreenState extends State<PlanSelectionScreen> {
     );
   }
 
-  Future<void> _handlePlanSelection(String plan) async {
-    setState(() {
-      _isLoading = true;
-    });
+ Future<void> _handlePlanSelection(String plan) async {
+  setState(() {
+    _isLoading = true;
+  });
 
-    // Simulate API call
-    await Future.delayed(const Duration(seconds: 1));
-
-    if (!mounted) return;
-
+  try {
     if (plan == 'pro') {
-      // Navigate to pro dashboard
-      Navigator.pushReplacementNamed(context, AppRoutes.proDashboard);
+      // Upgrade user to PRO
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final success = await authProvider.upgradeToPro();
+      
+      if (success && mounted) {
+        // Navigate to PRO dashboard
+        Navigator.pushReplacementNamed(context, AppRoutes.proDashboard);
+      }
     } else {
       // Navigate to freemium chat
       Navigator.pushReplacementNamed(context, AppRoutes.freemiumChat);
     }
-
-    setState(() {
-      _isLoading = false;
-    });
+  } catch (e) {
+    print('❌ Plan selection error: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Failed to upgrade: $e'),
+        backgroundColor: Colors.red,
+      ),
+    );
+  } finally {
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
+}
 }

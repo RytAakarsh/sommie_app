@@ -14,6 +14,7 @@ class AuthProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get isAuthenticated => _currentUser != null;
+  bool get isProUser => _currentUser?.plan == 'PRO';
 
   AuthProvider() {
     _loadSavedUser();
@@ -27,9 +28,10 @@ class AuthProvider extends ChangeNotifier {
       
       if (user != null && token != null) {
         print('✅ Found saved user: ${user.name}');
+        print('✅ Saved plan: ${user.plan}');
         print('✅ Saved avatar: ${user.avatar}');
         
-        // Always use profile data if available (it has the latest avatar)
+        // Merge profile data with user data
         if (profile != null) {
           _currentUser = UserModel(
             userId: user.userId,
@@ -43,10 +45,9 @@ class AuthProvider extends ChangeNotifier {
             avatar: profile['avatar'] ?? user.avatar,
             token: user.token,
           );
-          print('✅ Loaded user with profile avatar: ${_currentUser!.avatar}');
+          print('✅ Loaded user with plan: ${_currentUser!.plan}');
         } else {
           _currentUser = user;
-          print('✅ Loaded user without profile: ${_currentUser!.avatar}');
         }
       } else {
         print('❌ No saved user found');
@@ -65,68 +66,52 @@ class AuthProvider extends ChangeNotifier {
     try {
       final response = await _authService.login(email, password);
       
-      // IMPORTANT: Load existing profile data BEFORE overwriting
+      final savedUser = await StorageHelper.getUser();
       final existingProfile = await StorageHelper.getUserProfile();
       
-      print('📁 Existing profile: $existingProfile');
+      print('📁 Saved user plan: ${savedUser?.plan}');
+      print('📁 Login response plan: ${response.user.plan}');
+      
+      // Use saved plan if it exists (for PRO users), otherwise use response plan
+      final correctPlan = savedUser?.plan == 'PRO' ? 'PRO' : response.user.plan;
+      print('📁 Using plan: $correctPlan');
+      
+      _currentUser = UserModel(
+        userId: response.user.userId,
+        name: existingProfile?['name'] ?? response.user.name,
+        email: existingProfile?['email'] ?? response.user.email,
+        plan: correctPlan,
+        age: response.user.age,
+        country: response.user.country,
+        gender: existingProfile?['gender'] ?? response.user.gender,
+        role: existingProfile?['role'] ?? response.user.role,
+        avatar: existingProfile?['avatar'] ?? response.user.avatar,
+        token: response.token,
+      );
+      
+      await StorageHelper.saveToken(response.token);
+      await StorageHelper.saveUser(_currentUser!);
       
       if (existingProfile != null) {
-        // Use existing profile data to create the user
-        _currentUser = UserModel(
-          userId: response.user.userId,
-          name: existingProfile['name'] ?? response.user.name,
-          email: existingProfile['email'] ?? response.user.email,
-          plan: response.user.plan,
-          age: response.user.age,
-          country: response.user.country,
-          gender: existingProfile['gender'] ?? response.user.gender,
-          role: existingProfile['role'] ?? response.user.role,
-          avatar: existingProfile['avatar'] ?? response.user.avatar,
-          token: response.token,
-        );
-        print('✅ Preserved existing avatar: ${_currentUser!.avatar}');
+        existingProfile['name'] = _currentUser!.name;
+        existingProfile['email'] = _currentUser!.email;
+        existingProfile['avatar'] = _currentUser!.avatar ?? existingProfile['avatar'];
+        existingProfile['role'] = _currentUser!.role ?? existingProfile['role'];
+        await StorageHelper.saveUserProfile(existingProfile);
+        print('✅ Existing profile updated');
       } else {
-        // No existing profile, use response data
-        _currentUser = response.user.copyWith(token: response.token);
-        print('✅ New user created with avatar: ${_currentUser!.avatar}');
-      }
-      
-      // Save token
-      await StorageHelper.saveToken(response.token);
-      
-      // Save user with preserved profile data
-      await StorageHelper.saveUser(_currentUser!);
-      print('✅ User saved with avatar: ${_currentUser!.avatar}');
-      
-      // If no profile existed, create one
-      if (existingProfile == null) {
-        final newProfile = {
+        await StorageHelper.saveUserProfile({
           'name': _currentUser!.name,
           'email': _currentUser!.email,
           'avatar': _currentUser!.avatar ?? '',
           'role': _currentUser!.role ?? '',
-          'phone': '',
-          'cpf': '',
-          'address': '',
-          'dob': '',
           'gender': _currentUser!.gender ?? '',
-        };
-        await StorageHelper.saveUserProfile(newProfile);
+        });
         print('✅ New profile created');
-      } else {
-        // Update existing profile with any new data from login
-        existingProfile['name'] = _currentUser!.name;
-        existingProfile['email'] = _currentUser!.email;
-        // Don't overwrite avatar if it exists
-        if (_currentUser!.avatar != null && _currentUser!.avatar!.isNotEmpty) {
-          existingProfile['avatar'] = _currentUser!.avatar;
-        }
-        await StorageHelper.saveUserProfile(existingProfile);
-        print('✅ Existing profile updated');
       }
       
       print('✅ Login successful - User: ${_currentUser!.name}');
-      print('✅ Avatar: ${_currentUser!.avatar}');
+      print('✅ Plan: ${_currentUser!.plan}');
       
       _setLoading(false);
       notifyListeners();
@@ -165,7 +150,6 @@ class AuthProvider extends ChangeNotifier {
       await StorageHelper.saveToken(response.token);
       await StorageHelper.saveUser(response.user);
       
-      // Save profile
       await StorageHelper.saveUserProfile({
         'name': name,
         'email': email,
@@ -179,6 +163,7 @@ class AuthProvider extends ChangeNotifier {
       });
       
       print('✅ Signup successful - User: ${response.user.name}');
+      print('✅ Plan: ${response.user.plan}');
       
       _setLoading(false);
       notifyListeners();
@@ -191,30 +176,55 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  // Upgrade user to PRO on backend
+  Future<bool> upgradeToPro() async {
+    if (_currentUser == null) return false;
+    
+    _setLoading(true);
+    
+    try {
+      final token = await StorageHelper.getToken();
+      if (token == null) throw Exception('No token found');
+      
+      print('🔄 Upgrading user to PRO...');
+      
+      // Call backend to upgrade
+      final updatedUser = await _authService.upgradeToPro(_currentUser!.userId, token);
+      
+      // Update local user
+      _currentUser = _currentUser!.copyWith(
+        plan: 'PRO',
+        role: 'PRO User',
+      );
+      
+      await StorageHelper.saveUser(_currentUser!);
+      
+      // Update profile
+      final profile = await StorageHelper.getUserProfile() ?? {};
+      profile['role'] = 'PRO User';
+      await StorageHelper.saveUserProfile(profile);
+      
+      print('✅ User upgraded to PRO successfully');
+      print('✅ New plan: ${_currentUser!.plan}');
+      
+      _setLoading(false);
+      notifyListeners();
+      return true;
+    } catch (e) {
+      print('❌ Upgrade error: $e');
+      _setError(e.toString());
+      _setLoading(false);
+      return false;
+    }
+  }
+
+  // Refresh user data
   Future<void> refreshUser() async {
     try {
       final user = await StorageHelper.getUser();
-      final profile = await StorageHelper.getUserProfile();
-      
       if (user != null) {
-        if (profile != null) {
-          _currentUser = UserModel(
-            userId: user.userId,
-            name: profile['name'] ?? user.name,
-            email: profile['email'] ?? user.email,
-            plan: user.plan,
-            age: user.age,
-            country: user.country,
-            gender: profile['gender'] ?? user.gender,
-            role: profile['role'] ?? user.role,
-            avatar: profile['avatar'] ?? user.avatar,
-            token: user.token,
-          );
-        } else {
-          _currentUser = user;
-        }
-        print('✅ Refreshed user: ${_currentUser!.name}');
-        print('✅ Avatar: ${_currentUser!.avatar}');
+        _currentUser = user;
+        print('✅ Refreshed user: ${user.name} - Plan: ${user.plan}');
         notifyListeners();
       }
     } catch (e) {
@@ -222,11 +232,11 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  // Update user profile
   Future<void> updateUser(UserModel updatedUser) async {
     _currentUser = updatedUser;
     await StorageHelper.saveUser(updatedUser);
     
-    // Update profile
     final profile = await StorageHelper.getUserProfile() ?? {};
     profile['name'] = updatedUser.name;
     profile['email'] = updatedUser.email;
@@ -235,22 +245,21 @@ class AuthProvider extends ChangeNotifier {
     profile['gender'] = updatedUser.gender;
     await StorageHelper.saveUserProfile(profile);
     
-    print('✅ Updated user: ${updatedUser.name}');
+    print('✅ Updated user: ${updatedUser.name} - Plan: ${updatedUser.plan}');
     print('✅ Avatar: ${updatedUser.avatar}');
-    print('✅ Profile saved with avatar: ${updatedUser.avatar}');
     
     notifyListeners();
   }
 
+  // Logout
   Future<void> logout() async {
-  // Don't clear all storage - only auth data
-  await StorageHelper.removeToken();
-  await StorageHelper.removeUser();
-  // Keep cellar data
-  _currentUser = null;
-  print('✅ Logged out user - auth data cleared, cellar data preserved');
-  notifyListeners();
-}
+    await StorageHelper.removeToken();
+    await StorageHelper.removeUser();
+    _currentUser = null;
+    print('✅ Logged out user');
+    notifyListeners();
+  }
+
   void _setLoading(bool loading) {
     _isLoading = loading;
     notifyListeners();

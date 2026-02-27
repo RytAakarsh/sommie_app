@@ -7,7 +7,7 @@ import '../../../core/utils/validators.dart';
 import '../../../data/providers/auth_provider.dart';
 import '../../../routes/app_routes.dart';
 import '../../translations/translations_extension.dart';
-import '../../../core/utils/connectivity_helper.dart';
+import '../../../data/providers/language_provider.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -23,10 +23,11 @@ class _SignupScreenState extends State<SignupScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-    bool _isLoading = false;
-  String? _errorMessage;
+  
   String _selectedCountry = '';
   String _selectedGender = '';
+  String? _error;
+  bool _isLoading = false;
   
   final List<String> _countries = [
     'United States',
@@ -48,10 +49,10 @@ class _SignupScreenState extends State<SignupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context);
-    
+    final isPT = Provider.of<LanguageProvider>(context).currentLanguage == 'pt';
+
     return LoadingOverlay(
-      isLoading: authProvider.isLoading,
+      isLoading: _isLoading,
       child: Scaffold(
         backgroundColor: Colors.white,
         appBar: AppBar(
@@ -62,7 +63,7 @@ class _SignupScreenState extends State<SignupScreen> {
             onPressed: () => Navigator.pop(context),
           ),
           title: Text(
-            context.tr('auth.signup'),
+            isPT ? 'Cadastro' : 'Sign Up',
             style: const TextStyle(color: Colors.white),
           ),
         ),
@@ -73,8 +74,7 @@ class _SignupScreenState extends State<SignupScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Error message
-                if (_errorMessage != null) ...[
+                if (_error != null) ...[
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
@@ -83,7 +83,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       border: Border.all(color: Colors.red.shade200),
                     ),
                     child: Text(
-                      _errorMessage!,
+                      _error!,
                       style: const TextStyle(color: Colors.red),
                       textAlign: TextAlign.center,
                     ),
@@ -93,28 +93,26 @@ class _SignupScreenState extends State<SignupScreen> {
                 
                 // Name
                 CustomTextField(
-                  label: context.tr('signup.name'),
+                  label: isPT ? 'Nome Completo' : 'Full Name',
                   controller: _nameController,
                   validator: Validators.validateName,
                 ),
-                
                 const SizedBox(height: 16),
                 
                 // Age
                 CustomTextField(
-                  label: context.tr('signup.age'),
+                  label: isPT ? 'Idade' : 'Age',
                   controller: _ageController,
                   keyboardType: TextInputType.number,
                   validator: Validators.validateAge,
                 ),
-                
                 const SizedBox(height: 16),
                 
                 // Gender
                 DropdownButtonFormField<String>(
                   value: _selectedGender.isEmpty ? null : _selectedGender,
                   decoration: InputDecoration(
-                    labelText: context.tr('signup.gender'),
+                    labelText: isPT ? 'Gênero' : 'Gender',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -124,15 +122,15 @@ class _SignupScreenState extends State<SignupScreen> {
                   items: [
                     DropdownMenuItem(
                       value: 'male',
-                      child: Text(context.tr('signup.male')),
+                      child: Text(isPT ? 'Masculino' : 'Male'),
                     ),
                     DropdownMenuItem(
                       value: 'female',
-                      child: Text(context.tr('signup.female')),
+                      child: Text(isPT ? 'Feminino' : 'Female'),
                     ),
                     DropdownMenuItem(
                       value: 'other',
-                      child: Text(context.tr('signup.other')),
+                      child: Text(isPT ? 'Outro' : 'Other'),
                     ),
                   ],
                   onChanged: (value) {
@@ -142,57 +140,53 @@ class _SignupScreenState extends State<SignupScreen> {
                   },
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return context.tr('signup.genderRequired') ?? 'Gender is required';
+                      return isPT ? 'Gênero é obrigatório' : 'Gender is required';
                     }
                     return null;
                   },
                 ),
-                
                 const SizedBox(height: 16),
                 
                 // Email
                 CustomTextField(
-                  label: context.tr('auth.email'),
+                  label: 'Email',
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   validator: Validators.validateEmail,
                 ),
-                
                 const SizedBox(height: 16),
                 
                 // Password
                 CustomTextField(
-                  label: context.tr('signup.password'),
+                  label: isPT ? 'Senha' : 'Password',
                   controller: _passwordController,
                   isPassword: true,
                   validator: Validators.validatePassword,
                 ),
-                
                 const SizedBox(height: 16),
                 
                 // Confirm Password
                 CustomTextField(
-                  label: context.tr('signup.confirmPassword'),
+                  label: isPT ? 'Confirmar Senha' : 'Confirm Password',
                   controller: _confirmPasswordController,
                   isPassword: true,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return context.tr('signup.confirmPasswordRequired') ?? 'Please confirm your password';
+                      return isPT ? 'Por favor, confirme sua senha' : 'Please confirm your password';
                     }
                     if (value != _passwordController.text) {
-                      return context.tr('signup.passwordMismatch');
+                      return isPT ? 'As senhas não coincidem' : 'Passwords do not match';
                     }
                     return null;
                   },
                 ),
-                
                 const SizedBox(height: 16),
                 
                 // Country
                 DropdownButtonFormField<String>(
                   value: _selectedCountry.isEmpty ? null : _selectedCountry,
                   decoration: InputDecoration(
-                    labelText: context.tr('signup.country'),
+                    labelText: isPT ? 'País' : 'Country',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -212,17 +206,16 @@ class _SignupScreenState extends State<SignupScreen> {
                   },
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return context.tr('signup.countryRequired') ?? 'Country is required';
+                      return isPT ? 'País é obrigatório' : 'Country is required';
                     }
                     return null;
                   },
                 ),
-                
                 const SizedBox(height: 24),
                 
                 // Signup Button
                 CustomButton(
-                  text: context.tr('signup.nextStep'),
+                  text: isPT ? 'Cadastrar' : 'Sign Up',
                   onPressed: _handleSignup,
                   isPrimary: true,
                 ),
@@ -234,7 +227,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      context.tr('auth.existingUser'),
+                      isPT ? 'Já tem uma conta?' : 'Already have an account?',
                       style: const TextStyle(color: Colors.grey),
                     ),
                     TextButton(
@@ -242,7 +235,7 @@ class _SignupScreenState extends State<SignupScreen> {
                         Navigator.pushReplacementNamed(context, AppRoutes.login);
                       },
                       child: Text(
-                        context.tr('auth.login'),
+                        isPT ? 'Entrar' : 'Login',
                         style: const TextStyle(
                           color: Color(0xFF4B2B5F),
                           fontWeight: FontWeight.bold,
@@ -259,51 +252,42 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 
-Future<void> _handleSignup() async {
-  if (_formKey.currentState?.validate() ?? false) {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    try {
-      // Check internet first
-      await ConnectivityHelper.checkConnection();
-      
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final success = await authProvider.signup(
-        name: _nameController.text.trim(),
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-        age: int.parse(_ageController.text),
-        country: _selectedCountry,
-        gender: _selectedGender,
-      );
-
-      if (success && mounted) {
-        Navigator.pushReplacementNamed(context, AppRoutes.planSelection);
-      }
-    } catch (e) {
-      String errorMsg = e.toString().replaceFirst('Exception: ', '');
-      
-      if (errorMsg.contains('Connection timeout') || 
-          errorMsg.contains('O servidor não está respondendo')) {
-        errorMsg = '⏱️ O servidor está demorando para responder. Tente novamente em alguns instantes.\n\n'
-                  '⏱️ The server is taking too long to respond. Please try again in a few moments.';
-      }
-      
+  Future<void> _handleSignup() async {
+    if (_formKey.currentState?.validate() ?? false) {
       setState(() {
-        _errorMessage = errorMsg;
+        _isLoading = true;
+        _error = null;
       });
-    } finally {
-      if (mounted) {
+
+      try {
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        
+        final success = await authProvider.signup(
+          name: _nameController.text.trim(),
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+          age: int.parse(_ageController.text),
+          country: _selectedCountry,
+          gender: _selectedGender,
+        );
+
+        if (success && mounted) {
+          // Go to plan selection page after successful signup
+          Navigator.pushReplacementNamed(context, AppRoutes.planSelection);
+        }
+      } catch (e) {
         setState(() {
-          _isLoading = false;
+          _error = e.toString().replaceFirst('Exception: ', '');
         });
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
       }
     }
   }
-}
 
   @override
   void dispose() {
