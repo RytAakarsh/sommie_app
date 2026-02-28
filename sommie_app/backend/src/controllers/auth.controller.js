@@ -1628,7 +1628,9 @@ export const signup = async (req, res) => {
   try {
     const TABLE = process.env.DYNAMO_USERS_TABLE;
 
-    const { name, email, password, age, country, gender } = req.body;
+    // const { name, email, password, age, country, gender } = req.body;
+    const { name, password, age, country, gender } = req.body;
+const email = req.body.email?.toLowerCase().trim();
 
     if (!name || !email || !password || !age || !country || !gender) {
       return res.status(400).json({ 
@@ -1721,7 +1723,9 @@ export const signup = async (req, res) => {
 export const login = async (req, res) => {
   try {
     const TABLE = process.env.DYNAMO_USERS_TABLE;
-    const { email, password } = req.body;
+    // const { email, password } = req.body;
+    const password = req.body.password;
+const email = req.body.email?.toLowerCase().trim();
 
     if (!email || !password) {
       return res.status(400).json({ 
