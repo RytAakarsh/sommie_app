@@ -123,7 +123,6 @@
 //   }
 // }
 
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../data/providers/auth_provider.dart';
@@ -142,39 +141,73 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    _navigate();
+    // Use post frame callback to ensure build is complete
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _navigate();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    // Clean up any pending operations
+    super.dispose();
   }
 
   Future<void> _navigate() async {
-    // Wait for 2 seconds
-    await Future.delayed(const Duration(seconds: 2));
-    
-    // Check if widget is still mounted
-    if (!mounted) return;
-    
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final flowProvider = Provider.of<AuthFlowProvider>(context, listen: false);
-    
-    // Reset auth flow state for new session
-    flowProvider.reset();
-    
-    // ✅ Use isAuthenticated getter (now it exists)
-    if (authProvider.isAuthenticated) {
-      final user = authProvider.currentUser;
-      if (user?.plan == 'PRO' || user?.plan == 'pro') {
-        // Navigate to PRO Dashboard
-        if (mounted) {
-          Navigator.pushReplacementNamed(context, AppRoutes.proDashboard);
+    try {
+      // Wait for 2 seconds (minimum splash duration)
+      await Future.delayed(const Duration(seconds: 2));
+      
+      // Check if widget is still mounted after delay
+      if (!mounted) return;
+      
+      // Get providers AFTER checking mounted
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final flowProvider = Provider.of<AuthFlowProvider>(context, listen: false);
+      
+      // Check mounted again after getting providers
+      if (!mounted) return;
+      
+      // Reset auth flow state for new session
+      flowProvider.reset();
+      
+      // Check mounted before each navigation path
+      if (!mounted) return;
+      
+      // ✅ Use isAuthenticated getter
+      if (authProvider.isAuthenticated) {
+        final user = authProvider.currentUser;
+        
+        // Check mounted before accessing user plan
+        if (!mounted) return;
+        
+        // Navigate based on user plan
+        final isPro = user?.plan?.toUpperCase() == 'PRO';
+        
+        if (isPro) {
+          // Navigate to PRO Dashboard
+          if (mounted) {
+            Navigator.pushReplacementNamed(context, AppRoutes.proDashboard);
+          }
+        } else {
+          // Navigate to Freemium Chat
+          if (mounted) {
+            Navigator.pushReplacementNamed(context, AppRoutes.freemiumChat);
+          }
         }
       } else {
-        // Navigate to Freemium Chat
+        // Navigate to Auth Flow (which handles login/signup flow)
         if (mounted) {
-          Navigator.pushReplacementNamed(context, AppRoutes.freemiumChat);
+          Navigator.pushReplacementNamed(context, AppRoutes.authFlow);
         }
       }
-    } else {
-      // Navigate to Auth Flow (which handles login/signup flow)
+    } catch (e) {
+      // Handle any errors during navigation
+      print("❌ SplashScreen navigation error: $e");
       if (mounted) {
+        // Fallback to auth flow on error
         Navigator.pushReplacementNamed(context, AppRoutes.authFlow);
       }
     }

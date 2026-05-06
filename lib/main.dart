@@ -22,15 +22,24 @@ import 'presentation/translations/translations_extension.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Load saved language preference
+  // Load saved language preference (non-blocking)
   final prefs = await SharedPreferences.getInstance();
   final savedLanguage = prefs.getString(AppConstants.languageKey) ?? 'en';
   
-  // Create and load auth provider before running app
+  // Create auth provider WITHOUT blocking await
   final authProvider = AuthProvider();
-  await authProvider.loadUser();
   
-  // Create cellar provider after auth is loaded
+  // Load user in background - DON'T await here
+  Future.microtask(() async {
+    try {
+      await authProvider.loadUser();
+      print("✅ Auth user loaded successfully");
+    } catch (e) {
+      print("❌ Auth load error: $e");
+    }
+  });
+  
+  // Create cellar provider after auth is created
   final cellarProvider = CellarProvider();
   
   runApp(
@@ -84,11 +93,14 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // Refresh user data when app comes to foreground
     if (state == AppLifecycleState.resumed) {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      authProvider.refreshUser();
-      
-      final cellarProvider = Provider.of<CellarProvider>(context, listen: false);
-      cellarProvider.loadWines();
+      // Use Future.microtask to avoid blocking UI
+      Future.microtask(() {
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        authProvider.refreshUser();
+        
+        final cellarProvider = Provider.of<CellarProvider>(context, listen: false);
+        cellarProvider.loadWines();
+      });
     }
   }
 

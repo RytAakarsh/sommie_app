@@ -1,7 +1,14 @@
 name: sommie_app
 description: Sommie - Your Personal Sommelier with AI
 publish_to: 'none'
-version: 1.0.2+2
+version: 2.0.2+202
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/sommie_avatar/Avatares_sommie_Dom_Aurelius.png"
+  adaptive_icon_background: "#ffffff"
+  adaptive_icon_foreground: "assets/sommie_avatar/Avatares_sommie_Dom_Aurelius.png"
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -56,6 +63,7 @@ dependencies:
 
   app_links: ^6.3.2
   shimmer: ^3.0.0
+  flutter_launcher_icons: ^0.14.4
 
 
 
